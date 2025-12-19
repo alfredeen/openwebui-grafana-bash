@@ -67,6 +67,14 @@ jobs:
             sleep 2
           done
 
+      - name: Verify InfluxDB write+query
+        run: |
+          export INFLUX_URL="http://localhost:8086"
+          export INFLUXDB_TOKEN="ci-token-super-secret"
+          export INFLUXDB_ORG="ci-org"
+          export INFLUXDB_BUCKET="ci-bucket"
+          ./tests/ci_influx_verify.sh
+
       - name: Show container logs on failure
         if: failure()
         run: docker compose logs --no-color influxdb
