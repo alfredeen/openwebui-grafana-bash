@@ -1,0 +1,14 @@
+# Dev related deploy
+Dockerfile.dev
+docker-compose-override-dev.yaml
+requirements-dev.txt
+dependencies_license.txt
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Dev logs
+*.log

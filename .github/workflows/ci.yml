@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: [ "main" ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    types: [opened, reopened]
+    branches: [ "*" ]
+    paths-ignore:
+      - '**.md'
+
+  # Adds ability to run this workflow manually
+  workflow_dispatch:
+
+
+jobs:
+  yamllint:
+    if: false  # Skip this job for now
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: ".github/workflows docker-compose.yml"
+
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: '.'
+          severity: error
+
+
+  build:
+    if: false  # Skip this job for now
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: scraper/Dockerfile
+          push: false

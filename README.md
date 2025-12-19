@@ -9,7 +9,14 @@ We use Open WebUI RESTfulAPI to reduce the workload and increase the speed of sc
 
 ----------
 
-### Getting started
+
+
+## History
+This repository is originally based on https://github.com/jorgedlcruz/openwebui-grafana, now maintained independently.
+
+### Original setup instructions
+
+#### Getting started
 You can follow the steps on the next Blog Post - https://jorgedelacruz.uk/2025/02/15/looking-for-the-perfect-dashboard-influxdb-telegraf-and-grafana-part-xlvii-monitoring-open-webui/
 
 Or try with this simple steps:
@@ -19,11 +26,3 @@ Or try with this simple steps:
 * Schedule the script execution, for example every 30 minutes using crontab
 * Download the Open WebUI Grafana dashboard JSON file and import it into your Grafana
 * Enjoy :)
-
-----------
-
-### Additional Information
-* Nothing to add as of today
-
-### Known issues 
-Would love to see some known issues and keep opening and closing as soon as I have feedback from you guys. Fork this project, use it and please provide feedback.
