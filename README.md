@@ -9,6 +9,17 @@ We use Open WebUI RESTfulAPI to reduce the workload and increase the speed of sc
 
 ----------
 
+## Local development
+
+Copy the .env.example as .env
+```bash
+cp .env.example .env
+```
+
+Edit the values in the .env file and run docker compose
+```bash
+docker compose up -d
+```
 
 
 ## History

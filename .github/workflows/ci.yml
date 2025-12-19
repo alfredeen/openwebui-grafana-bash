@@ -17,13 +17,12 @@ on:
 
 jobs:
   yamllint:
-    if: false  # Skip this job for now
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: ".github/workflows docker-compose.yml"
+          file_or_dir: "docker-compose.yml"
 
 
   shellcheck:
@@ -36,14 +35,42 @@ jobs:
           severity: error
 
 
-  build:
-    if: false  # Skip this job for now
+  build-influxdb-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: scraper/Dockerfile
-          push: false
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env for CI
+        run: |
+          cat > .env <<'EOF'
+          INFLUXDB_INIT_USERNAME=ciadmin
+          INFLUXDB_INIT_PASSWORD=CiAdmin1234
+          INFLUXDB_ORG=ci-org
+          INFLUXDB_BUCKET=ci-bucket
+          INFLUXDB_TOKEN=ci-token-super-secret
+          EOF
+
+      - name: Start InfluxDB only
+        run: docker compose up -d influxdb
+
+      - name: Wait for InfluxDB to be ready
+        run: |
+          # Poll from a curl container
+          for i in {1..60}; do
+            if docker run --rm --network "$(docker compose ps -q influxdb | xargs docker inspect -f '{{range .NetworkSettings.Networks}}{{.NetworkID}}{{end}}' | head -n1)" \
+              curlimages/curl:8.5.0 -fsS http://influxdb:8086/health >/dev/null; then
+              echo "InfluxDB /health is OK"
+              break
+            fi
+            echo "Waiting for InfluxDB... ($i/60)"
+            sleep 2
+          done
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color influxdb
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
