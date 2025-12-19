@@ -10,18 +10,19 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+    ports:
+      - "8086:8086"
     volumes:
       - influxdb_data:/var/lib/influxdb2
-    ports:
-      - "8086:8086"   # bind to 127.0.0.1 if Grafana is on same host
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8086/health"]
+      test: ["CMD", "sh", "-c", "curl -fsS http://localhost:8086/health >/dev/null || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 20
-      start_period: 20s
+      start_period: 15s
 
   scraper:
+    container_name: openwebui-scraper
     build:
       context: .
       dockerfile: scraper/Dockerfile
@@ -29,6 +30,12 @@ services:
     depends_on:
       influxdb:
         condition: service_healthy
+    volumes:
+      - scraper_state:/state
+    environment:
+      - LASTRUN_FILE=/state/lastrun.txt
+      - SCRAPE_INTERVAL_SECONDS=60
 
 volumes:
   influxdb_data:
+  scraper_state:
