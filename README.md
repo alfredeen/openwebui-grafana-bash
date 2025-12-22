@@ -16,13 +16,16 @@ Copy the .env.example as .env
 cp .env.example .env
 ```
 
-Edit the values in the .env file and run docker compose
+Edit the values in the .env file. Some configuration options to note are:
+* DRY_RUN:  Set to true to run the scraper program without writing anything to the InfluxDB.
+
+Run docker compose
 ```bash
 docker compose up -d
 ```
 
 
-## History
+## Source attribution and history
 This repository is originally based on https://github.com/jorgedlcruz/openwebui-grafana, now maintained independently.
 
 ### Original setup instructions

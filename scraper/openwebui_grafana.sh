@@ -9,13 +9,20 @@
 ##
 ##      .Notes
 ##      NAME:  openwebui_grafana.sh
-##      LASTEDIT: 2025-12-19
+##      LASTEDIT: 2025-12-22
 ##      VERSION: 2.0
 ##      KEYWORDS: Open WebUI, AI, InfluxDB, Grafana
 ##
 ##      .Link
 ##      Based on the work of https://github.com/jorgedlcruz/openwebui-grafana
 
+# Parse dry-run mode
+DRY_RUN="${DRY_RUN:-false}"
+
+# CLI flag overrides env
+if [[ "$DRY_RUN" != "true" && "$cli_dry_run" == "true" ]]; then
+  DRY_RUN=true
+fi
 
 # Open WebUI Configuration
 webuiAPIBaseURL="${WEBUI_API_BASE_URL:-http://YOUROPENWEBUIIPORFQDN:8080}"
@@ -30,6 +37,24 @@ veeamInfluxDBOrg="${INFLUXDB_ORG:-openwebui}"
 # File to store last execution timestamp
 lastRunFile="lastrun.txt"
 
+echo "============================================================"
+echo "[openwebui-scraper] Starting at $(date -Is)"
+echo "------------------------------------------------------------"
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  echo "[mode] DRY-RUN enabled — no data will be written to InfluxDB"
+fi
+
+echo "[config] Open WebUI API base URL : ${webuiAPIBaseURL}"
+echo "[config] Open WebUI user        : ${webuiEmail}"
+
+echo "[config] InfluxDB org           : ${veeamInfluxDBOrg}"
+echo "[config] InfluxDB bucket        : ${veeamInfluxDBBucket}"
+echo "[config] InfluxDB host          : ${INFLUX_HOST}"
+echo "[config] InfluxDB write endpoint: ${INFLUX_URL}"
+
+echo "[config] Last-run state file    : ${lastRunFile}"
+
 # Load last execution timestamp
 if [[ -f "$lastRunFile" ]]; then
     lastRunTime=$(cat "$lastRunFile")
@@ -38,6 +63,16 @@ else
 fi
 
 echo "Last execution timestamp: $lastRunTime"
+echo "------------------------------------------------------------"
+
+: "${WEBUI_API_BASE_URL:?WEBUI_API_BASE_URL is not set}"
+: "${WEBUI_EMAIL:?WEBUI_EMAIL is not set}"
+: "${WEBUI_PASSWORD:?WEBUI_PASSWORD is not set}"
+
+: "${INFLUXDB_BUCKET:?INFLUXDB_BUCKET is not set}"
+: "${INFLUXDB_ORG:?INFLUXDB_ORG is not set}"
+: "${INFLUXDB_TOKEN:?INFLUXDB_TOKEN is not set}"
+echo "------------------------------------------------------------"
 
 # Authenticate with Open WebUI
 authResponse=$(curl -s -X POST "$webuiAPIBaseURL/api/v1/auths/signin" \
@@ -134,15 +169,25 @@ echo "$sortedChats" | jq -c '.[]' | while read -r chat; do
 
         echo "Extracted Stats - Chat: $chatID | Message: $messageID | Model: $modelUsed | responseTokens: $responseTokens | promptTokens: $promptTokens | duration: $totalDuration ms | loadDuration: $loadDuration ms | promptEvalCount: $promptEvalCount | promptEvalDuration: $promptEvalDuration ms | evalCount: $evalCount | evalDuration: $evalDuration ms | approximateTotalMS: $approximateTotalMS ms | messageTimestamp: $messageTimestamp"
 
-        # **Send data to InfluxDB using message timestamp**
-        influx write \
-        -t "$veeamInfluxDBToken" \
-        -b "$veeamInfluxDBBucket" \
-        -o "$veeamInfluxDBOrg" \
-        -p s \
-        "openwebui_stats,chatID=$chatID,messageID=$messageID,model=$modelUsed responseTokens=$responseTokens,promptTokens=$promptTokens,totalDuration=$totalDuration,loadDuration=$loadDuration,promptEvalCount=$promptEvalCount,promptEvalDuration=$promptEvalDuration,evalCount=$evalCount,evalDuration=$evalDuration,approximateTotalMS=$approximateTotalMS $messageTimestamp"
+        if [[ "$DRY_RUN" == "true" ]]; then
+            echo "[dry-run] Would write to InfluxDB:"
+            echo "[dry-run] bucket=${veeamInfluxDBBucket} org=${veeamInfluxDBOrg}"
+            echo "[dry-run] Completed one iteration; exiting."
+            exit 0
+        fi
 
-        echo "Data sent to InfluxDB."
+        # **Send data to InfluxDB using message timestamp**
+        if influx write \
+            -t "$veeamInfluxDBToken" \
+            -b "$veeamInfluxDBBucket" \
+            -o "$veeamInfluxDBOrg" \
+            -p s \
+            "openwebui_stats,chatID=$chatID,messageID=$messageID,model=$modelUsed responseTokens=$responseTokens,promptTokens=$promptTokens,totalDuration=$totalDuration,loadDuration=$loadDuration,promptEvalCount=$promptEvalCount,promptEvalDuration=$promptEvalDuration,evalCount=$evalCount,evalDuration=$evalDuration,approximateTotalMS=$approximateTotalMS $messageTimestamp";
+        then
+            echo "Data sent to InfluxDB."
+        else
+            echo "ERROR: failed to send data to InfluxDB" >&2
+        fi
     done
 
     # **Ensure latest timestamp is updated**
