@@ -7,7 +7,6 @@ set -euo pipefail
 export INFLUX_URL="${INFLUX_URL:-${INFLUXDB_URL:-http://influxdb}:${INFLUXDB_PORT:-8086}}"
 export INFLUX_HOST="${INFLUX_HOST:-${INFLUX_URL}}"
 
-
 # state dir for persistent state of the lastrun timestamp
 mkdir -p /state
 
