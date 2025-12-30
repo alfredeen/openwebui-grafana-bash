@@ -9,7 +9,7 @@
 ##
 ##      .Notes
 ##      NAME:  openwebui_grafana.sh
-##      LASTEDIT: 2025-12-22
+##      LASTEDIT: 2025-12-30
 ##      VERSION: 2.0
 ##      KEYWORDS: Open WebUI, AI, InfluxDB, Grafana
 ##
@@ -36,6 +36,29 @@ veeamInfluxDBOrg="${INFLUXDB_ORG:-openwebui}"
 
 # File to store last execution timestamp
 lastRunFile="lastrun.txt"
+
+
+# ------------------------------------------------------------
+# Helper functions
+# ------------------------------------------------------------
+
+sanitize_tag_value() {
+  echo "$1" | tr -d '\n\r\t' | sed 's/[ ,=]/_/g'
+}
+
+# Function to convert "0h1m11s" format to milliseconds
+convert_time_to_ms() {
+    local time_str="$1"
+    local hours=$(echo "$time_str" | grep -oP '\d+(?=h)' || echo "0")
+    local minutes=$(echo "$time_str" | grep -oP '\d+(?=m)' || echo "0")
+    local seconds=$(echo "$time_str" | grep -oP '\d+(?=s)' || echo "0")
+    echo $(( (hours * 3600 + minutes * 60 + seconds) * 1000 ))
+}
+
+
+# ------------------------------------------------------------
+# Main execution
+# ------------------------------------------------------------
 
 echo "============================================================"
 echo "[openwebui-scraper] Starting at $(date -Is)"
@@ -90,7 +113,7 @@ fi
 echo "Successfully authenticated."
 
 # Fetch all chat sessions
-chatsJSON=$(curl -s -X GET "$webuiAPIBaseURL/api/v1/chats/" \
+chatsJSON=$(curl -s -X GET "$webuiAPIBaseURL/api/v1/chats/all/db" \
     -H "Authorization: Bearer $webuiToken")
 
 # **Filter chats where updated_at > lastRunTime**
@@ -107,15 +130,6 @@ fi
 # **Sort chats by updated_at to process them in order**
 sortedChats=$(echo "$filteredChats" | jq -c 'sort_by(.updated_at)')
 
-# Function to convert "0h1m11s" format to milliseconds
-convert_time_to_ms() {
-    local time_str="$1"
-    local hours=$(echo "$time_str" | grep -oP '\d+(?=h)' || echo "0")
-    local minutes=$(echo "$time_str" | grep -oP '\d+(?=m)' || echo "0")
-    local seconds=$(echo "$time_str" | grep -oP '\d+(?=s)' || echo "0")
-    echo $(( (hours * 3600 + minutes * 60 + seconds) * 1000 ))
-}
-
 # **Initialize latest timestamp variable**
 latestUpdatedAt=$lastRunTime
 
@@ -126,21 +140,41 @@ echo "$sortedChats" | jq -c '.[]' | while read -r chat; do
 
     echo "Processing updated chat: $chatID (updated at $chatUpdatedAt)"
 
-    # Fetch chat details
-    chatDetails=$(curl -s -X GET "$webuiAPIBaseURL/api/v1/chats/$chatID" \
-        -H "Authorization: Bearer $webuiToken")
+    chatDetails="$chat"  # contains chat.chat.history.messages
 
-    # Extract messages array
+    # Fetch chat details
+    # chatDetails=$(curl -s -X GET "$webuiAPIBaseURL/api/v1/chats/$chatID" \
+    #    -H "Authorization: Bearer $webuiToken")
+
+    # Extract messages safely
+    # only process chats with history map to prevent double counting
+    hasHistory=$(echo "$chatDetails" | jq -r '.chat.history.messages != null')
+    if [[ "$hasHistory" != "true" ]]; then
+        echo "Skipping chat $chatID: no history messages map"
+        continue
+    fi
+
     messageIDs=($(echo "$chatDetails" | jq -r '.chat.history.messages | keys[]'))
 
     for messageID in "${messageIDs[@]}"; do
         echo "Processing message: $messageID"
 
+        # Skip messages that don’t have .usage, preventing writing zero stats
+        usage=$(echo "$chatDetails" | jq ".chat.history.messages.\"$messageID\".usage // empty")
+        if [[ -z "$usage" ]]; then
+            continue
+        fi
+
         # Extract message-specific details
-        usage=$(echo "$chatDetails" | jq ".chat.history.messages.\"$messageID\".usage")
         modelUsed=$(echo "$chatDetails" | jq -r ".chat.history.messages.\"$messageID\".model" | grep -v null | awk '{gsub(/([ :,])/,"_");print}')
-        responseTokens=$(echo "$usage" | jq -r '."response_token/s" // 0')
-        promptTokens=$(echo "$usage" | jq -r '."prompt_token/s" // 0')
+        # token rates
+        responseTokensPerS=$(echo "$usage" | jq -r '."response_token/s" // 0')
+        promptTokensPerS=$(echo "$usage" | jq -r '."prompt_token/s" // 0')
+        # token counts
+        promptTokens=$(echo "$usage" | jq -r '.prompt_tokens // 0')
+        completionTokens=$(echo "$usage" | jq -r '.completion_tokens // 0')
+        totalTokens=$(echo "$usage" | jq -r '.total_tokens // 0')
+        # durations etc
         totalDuration=$(echo "$usage" | jq -r '.total_duration // 0')
         loadDuration=$(echo "$usage" | jq -r '.load_duration // 0')
         promptEvalCount=$(echo "$usage" | jq -r '.prompt_eval_count // 0')
@@ -156,8 +190,11 @@ echo "$sortedChats" | jq -c '.[]' | while read -r chat; do
         messageTimestamp=$(echo "$chatDetails" | jq -r ".chat.history.messages.\"$messageID\".timestamp")
 
         # Ensure all extracted values are valid
-        responseTokens=${responseTokens:-0}
+        responseTokensPerS=${responseTokensPerS:-0}
+        promptTokensPerS=${promptTokensPerS:-0}
         promptTokens=${promptTokens:-0}
+        completionTokens=${completionTokens:-0}
+        totalTokens=${totalTokens:-0}
         totalDuration=${totalDuration:-0}
         loadDuration=${loadDuration:-0}
         promptEvalCount=${promptEvalCount:-0}
@@ -167,7 +204,9 @@ echo "$sortedChats" | jq -c '.[]' | while read -r chat; do
         approximateTotalMS=${approximateTotalMS:-0}
         modelUsed=${modelUsed:-"unknown"}
 
-        echo "Extracted Stats - Chat: $chatID | Message: $messageID | Model: $modelUsed | responseTokens: $responseTokens | promptTokens: $promptTokens | duration: $totalDuration ms | loadDuration: $loadDuration ms | promptEvalCount: $promptEvalCount | promptEvalDuration: $promptEvalDuration ms | evalCount: $evalCount | evalDuration: $evalDuration ms | approximateTotalMS: $approximateTotalMS ms | messageTimestamp: $messageTimestamp"
+        modelTag=$(sanitize_tag_value "$modelUsed")
+
+        echo "Subset of extracted stats - Chat: $chatID | Message: $messageID | Model: $modelTag | promptTokens: $promptTokens | duration: $totalDuration ms | loadDuration: $loadDuration ms | promptEvalCount: $promptEvalCount | promptEvalDuration: $promptEvalDuration ms | evalCount: $evalCount | evalDuration: $evalDuration ms | approximateTotalMS: $approximateTotalMS ms | messageTimestamp: $messageTimestamp"
 
         if [[ "$DRY_RUN" == "true" ]]; then
             echo "[dry-run] Would write to InfluxDB:"
@@ -176,17 +215,25 @@ echo "$sortedChats" | jq -c '.[]' | while read -r chat; do
             exit 0
         fi
 
+        line_protocol="openwebui_stats,chatID=$chatID,messageID=$messageID,model=$modelTag"
+        line_protocol+=" responseTokensPerS=$responseTokensPerS,promptTokensPerS=$promptTokensPerS"
+        line_protocol+=",promptTokens=$promptTokens,completionTokens=$completionTokens,totalTokens=$totalTokens"
+        line_protocol+=",totalDuration=$totalDuration,loadDuration=$loadDuration,promptEvalCount=$promptEvalCount"
+        line_protocol+=",promptEvalDuration=$promptEvalDuration,evalCount=$evalCount,evalDuration=$evalDuration"
+        line_protocol+=",approximateTotalMS=$approximateTotalMS $messageTimestamp"
+
         # **Send data to InfluxDB using message timestamp**
         if influx write \
             -t "$veeamInfluxDBToken" \
             -b "$veeamInfluxDBBucket" \
             -o "$veeamInfluxDBOrg" \
             -p s \
-            "openwebui_stats,chatID=$chatID,messageID=$messageID,model=$modelUsed responseTokens=$responseTokens,promptTokens=$promptTokens,totalDuration=$totalDuration,loadDuration=$loadDuration,promptEvalCount=$promptEvalCount,promptEvalDuration=$promptEvalDuration,evalCount=$evalCount,evalDuration=$evalDuration,approximateTotalMS=$approximateTotalMS $messageTimestamp";
+            "$line_protocol";
         then
-            echo "Data sent to InfluxDB."
+            echo "[influx] data written to InfluxDB OK."
         else
-            echo "ERROR: failed to send data to InfluxDB" >&2
+            echo "ERROR: failed to write data to InfluxDB" >&2
+            echo "[debug] attempted to write line_protocol=$line_protocol" >&2
         fi
     done
 
