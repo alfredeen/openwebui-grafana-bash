@@ -34,7 +34,7 @@ services:
       - scraper_state:/state
     environment:
       - LASTRUN_FILE=/state/lastrun.txt
-      - SCRAPE_INTERVAL_SECONDS=60
+      - SCRAPE_INTERVAL_SECONDS=${SCRAPE_INTERVAL_SECONDS:-120}
 
 volumes:
   influxdb_data:

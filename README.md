@@ -17,6 +17,7 @@ cp .env.example .env
 ```
 
 Edit the values in the .env file. Some configuration options to note are:
+* SCRAPE_INTERVAL_SECONDS: To control the frequency to request new stats from the Open WebUI host.
 * DRY_RUN:  Set to true to run the scraper program without writing anything to the InfluxDB.
 
 Run docker compose
@@ -24,19 +25,48 @@ Run docker compose
 docker compose up -d
 ```
 
+## Tests
+
+### Verify the setup
+
+The InfluxDB service should respond:
+```bash
+curl -i http://localhost:8086/health
+```
+
+You should be able to login to InfluxDB:
+http://localhost:8086/
+
+### InfluxDB write test
+
+Run test to verify write access to the InfluxDB:
+```bash
+chmod +x tests/ci_influx_verify.sh
+```
+
+Start InfluxDB, load .env vars and run the test script:
+```bash
+docker compose up -d influxdb
+
+set -a
+source .env
+set +a
+
+export INFLUX_URL="http://localhost:8086"
+
+bash tests/ci_influx_verify.sh
+```
+
+Shutdown:
+```bash
+docker compose down -v
+```
+
+
+## Grafana dashboard
+
+In Grafana, create a new dashboard from the JSON content in the file named "Grafana Dashboard for Open WebUI.json"
+
 
 ## Source attribution and history
 This repository is originally based on https://github.com/jorgedlcruz/openwebui-grafana, now maintained independently.
-
-### Original setup instructions
-
-#### Getting started
-You can follow the steps on the next Blog Post - https://jorgedelacruz.uk/2025/02/15/looking-for-the-perfect-dashboard-influxdb-telegraf-and-grafana-part-xlvii-monitoring-open-webui/
-
-Or try with this simple steps:
-* Download the openwebui_grafana.sh file and change the parameters under Configuration, like username/password, etc. with your real data
-* Make the script executable with the command chmod +x openwebui_grafana.sh
-* Run the openwebui_grafana.sh and check on InfluxDB UI that you can retrieve the information properly
-* Schedule the script execution, for example every 30 minutes using crontab
-* Download the Open WebUI Grafana dashboard JSON file and import it into your Grafana
-* Enjoy :)
