@@ -11,9 +11,10 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
     ports:
-      - "8086:8086"
+      - "127.0.0.1:8086:8086"
     volumes:
       - influxdb_data:/var/lib/influxdb2
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "sh", "-c", "curl -fsS http://localhost:8086/health >/dev/null || exit 1"]
       interval: 10s
@@ -35,6 +36,7 @@ services:
     environment:
       - LASTRUN_FILE=/state/lastrun.txt
       - SCRAPE_INTERVAL_SECONDS=${SCRAPE_INTERVAL_SECONDS:-120}
+    restart: unless-stopped
 
 volumes:
   influxdb_data:

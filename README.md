@@ -63,6 +63,51 @@ docker compose down -v
 ```
 
 
+## Deployments (to production)
+
+Here we use a docker compose deployment approach.
+
+Check server compatibility:
+```bash
+docker --version
+docker compose version
+```
+
+Create a dedicated directory:
+```bash
+sudo mkdir -p /opt/openwebui-scraper
+sudo chown -R $USER:$USER /opt/openwebui-scraper
+```
+
+Pull the code from the main branch:
+```bash
+git pull --ff-only
+```
+
+Create a .env file and edit as needed, at least the change-me values.
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+Build and start it:
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f scraper
+```
+(Never stop it using -v)
+
+NB: Login to the InfluxDB and change the admin password via the InfluxDB UI. The INFLUXDB_INIT_PASSWORD is used only on first startup when the database is initialized. Changing INFLUXDB_INIT_PASSWORD later has no effect unless the InfluxDB volume is deleted.
+
+Verify the deployment:
+```bash
+curl -fsS http://localhost:8086/health
+docker compose logs --since=10m scraper
+docker volume ls | grep scraper_state
+```
+
+
 ## Grafana dashboard
 
 In Grafana, create a new dashboard from the JSON content in the file named "Grafana Dashboard for Open WebUI.json"
