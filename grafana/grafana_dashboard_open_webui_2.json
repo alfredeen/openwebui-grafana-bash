@@ -1,0 +1,249 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_INFLUXDB2",
+      "label": "InfluxDB",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "influxdb",
+      "pluginName": "InfluxDB"
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "A complete, opensource dashboard that shows consumption and usage of Open WebUI.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "gridPos": { "h": 6, "w": 3, "x": 0, "y": 0 },
+      "id": 2,
+      "options": {
+        "content": "<a href=\"https://openwebui.com/\" target=\"_blank\"><img src=\"https://openwebui.com/user.png\" alt=\"drawing\" width=\"200\"/></a>",
+        "mode": "markdown",
+        "code": { "language": "plaintext", "showLineNumbers": false, "showMiniMap": false }
+      },
+      "pluginVersion": "11.5.0",
+      "transparent": true,
+      "type": "text"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "description": "Displays key usage statistics for Open WebUI, including model count, total prompt tokens, average tokens/s, and average processing time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "dark-purple", "mode": "fixed" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 80 }]
+          }
+        },
+        "overrides": [
+          { "matcher": { "id": "byFrameRefID", "options": "A" }, "properties": [{ "id": "displayName", "value": "Models Used" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "B" }, "properties": [{ "id": "displayName", "value": "Total Prompt Tokens" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "C" }, "properties": [{ "id": "displayName", "value": "Average Tokens/s" }] },
+          { "matcher": { "id": "byFrameRefID", "options": "D" }, "properties": [{ "id": "unit", "value": "ms" }, { "id": "displayName", "value": "Average Duration" }] }
+        ]
+      },
+      "gridPos": { "h": 6, "w": 21, "x": 3, "y": 0 },
+      "id": 1,
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["last"], "fields": "", "values": false },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> keep(columns: [\"model\"])\n  |> distinct(column: \"model\")\n  |> group()\n  |> count()"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "B",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"promptTokens\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> group(columns: [])\n  |> sum()"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "C",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"responseTokensPerS\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> group(columns: [])\n  |> mean()"
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "D",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"approximateTotalMS\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> group(columns: [])\n  |> mean()"
+        }
+      ],
+      "title": "Open WebUI Usage Overview",
+      "type": "stat"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "description": "Displays token usage across models in a bar gauge format.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 3,
+      "options": {
+        "displayMode": "lcd",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true },
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"totalTokens\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> group(columns: [\"model\"])\n  |> sum()\n  |> filter(fn: (r) => r[\"_value\"] > 0)\n  |> yield(name: \"tokens_by_model\")"
+        }
+      ],
+      "title": "Token Usage by Model (Total Tokens)",
+      "type": "bargauge"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "description": "Tokens over time by model (total tokens).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 4,
+      "maxDataPoints": 10000,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"totalTokens\")\n  |> filter(fn: (r) => r[\"model\"] != \"unknown\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> aggregateWindow(every: v.windowPeriod, fn: sum, createEmpty: false)\n  |> yield(name: \"sum\")"
+        }
+      ],
+      "title": "Total Tokens Over Time",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "description": "Prompt + completion token totals per minute.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false } },
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"promptTokens\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> filter(fn: (r) => r[\"_value\"] > 0)",
+          "hide": false
+        },
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "B",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"completionTokens\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> aggregateWindow(every: 1m, fn: sum, createEmpty: false)\n  |> filter(fn: (r) => r[\"_value\"] > 0)",
+          "hide": false
+        }
+      ],
+      "title": "Token Counts per Minute (Prompt vs Completion)",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 22 },
+      "id": 7,
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"promptTokensPerS\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> filter(fn: (r) => r[\"_value\"] > 0)"
+        }
+      ],
+      "title": "Prompt Tokens per Second",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 22 },
+      "id": 6,
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"responseTokensPerS\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> filter(fn: (r) => r[\"_value\"] > 0)"
+        }
+      ],
+      "title": "Response Tokens per Second",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 22 },
+      "id": 8,
+      "pluginVersion": "11.5.0",
+      "targets": [
+        {
+          "datasource": { "type": "influxdb", "uid": "${DS_INFLUXDB2}" },
+          "refId": "A",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"_field\"] == \"approximateTotalMS\")\n  |> filter(fn: (r) => r[\"model\"] =~ /${model:regex}/)\n  |> filter(fn: (r) => r[\"_value\"] > 0)\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+        }
+      ],
+      "title": "Average Duration",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 40,
+  "tags": ["genAI", "AI", "Open WebUI", "Llama", "DeepSeek", "Qwen"],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "includeAll": true,
+        "label": "LLM Model",
+        "multi": true,
+        "name": "model",
+        "query": {
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"model\"] != \"\")\n  |> filter(fn: (r) => r[\"model\"] != \"unknown\")\n  |> keep(columns: [\"model\"])\n  |> distinct(column: \"model\")\n  |> group()"
+        },
+        "definition": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openwebui_stats\")\n  |> filter(fn: (r) => r[\"model\"] != \"\")\n  |> filter(fn: (r) => r[\"model\"] != \"unknown\")\n  |> keep(columns: [\"model\"])\n  |> distinct(column: \"model\")\n  |> group()",
+        "refresh": 2,
+        "type": "query"
+      }
+    ]
+  },
+  "time": { "from": "now-30d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Grafana Dashboard for Open WebUI 2",
+  "uid": "openwebui2",
+  "version": 1,
+  "weekStart": ""
+}
