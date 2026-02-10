@@ -65,6 +65,8 @@ docker compose down -v
 
 ## Deployments (to production)
 
+### Setup
+
 Here we use a docker compose deployment approach.
 
 Check server compatibility:
@@ -77,6 +79,8 @@ Create a dedicated directory:
 ```bash
 sudo mkdir -p /opt/openwebui-scraper
 sudo chown -R $USER:$USER /opt/openwebui-scraper
+cd /opt/openwebui-scraper
+git clone https://github.com/alfredeen/openwebui-grafana-bash.git .
 ```
 
 Pull the code from the main branch:
@@ -93,10 +97,10 @@ chmod 600 .env
 Build and start it:
 ```bash
 docker compose up -d --build
-docker compose ps
+docker compose ps |grep influx
+docker compose ps |grep scraper
 docker compose logs -f scraper
 ```
-(Never stop it using -v)
 
 NB: Login to the InfluxDB and change the admin password via the InfluxDB UI. The INFLUXDB_INIT_PASSWORD is used only on first startup when the database is initialized. Changing INFLUXDB_INIT_PASSWORD later has no effect unless the InfluxDB volume is deleted.
 
@@ -107,11 +111,36 @@ docker compose logs --since=10m scraper
 docker volume ls | grep scraper_state
 ```
 
+### Stopping the scraper service
+
+```bash
+docker compose stop scraper
+```
+(Never stop it using -v)
+
+### Upgrades and modifying settings
+
+Note that the scaper service logic relies on a timestamp read from and written to a lastrun.txt file.
+This is also created in dry_only=true mode.
+To reset the scraper service to read all history, then delete this file and restart the service:
+```bash
+docker exec -it openwebui-scraper rm -f /state/lastrun.txt
+docker compose up -d --force-recreate scraper
+```
+
+If modifying the .env settings, redeploy the scraper service:
+```bash
+cd /opt/openwebui-scraper
+docker compose up -d --force-recreate scraper
+docker compose logs -f scraper
+```
+
 
 ## Grafana dashboard
 
-In Grafana, create a new dashboard from the JSON content in the file named "Grafana Dashboard for Open WebUI.json"
+In Grafana, create a new dashboard from the JSON content in the file /grafana/grafana_dashboard_open_webui_2.json
 
 
 ## Source attribution and history
+
 This repository is originally based on https://github.com/jorgedlcruz/openwebui-grafana, now maintained independently.
