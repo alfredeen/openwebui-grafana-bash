@@ -138,8 +138,9 @@ docker compose logs -f scraper
 
 ## Grafana dashboard
 
-In Grafana, create a new dashboard from the JSON content in the file named "Grafana Dashboard for Open WebUI.json"
+In Grafana, create a new dashboard from the JSON content in the file /grafana/grafana_dashboard_open_webui_2.json
 
 
 ## Source attribution and history
+
 This repository is originally based on https://github.com/jorgedlcruz/openwebui-grafana, now maintained independently.
