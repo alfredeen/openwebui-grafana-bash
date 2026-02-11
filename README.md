@@ -1,11 +1,15 @@
 Grafana Dashboard for Open WebUI
 ===================
 
-![alt tag](https://jorgedelacruz.uk/wp-content/uploads/2025/02/openwebui-grafana-001.jpg)
-
-This project consists in a Bash Shell script to retrieve the  Open WebUI information, directly from the RESTfulAPI, about chats, messages and their stats. The information is being saved it into InfluxDB output directly into the InfluxDB database using curl, then in Grafana: a Dashboard is created to present all the information.
+This project consists of a Bash Shell script to retrieve the  Open WebUI information, directly from the RESTfulAPI, about chats, messages and their stats. The information is being saved to an InfluxDB database. Finally, a Grafana dashboard can be created to present all of the information.
 
 We use Open WebUI RESTfulAPI to reduce the workload and increase the speed of script execution. 
+
+#### Screenshot of the Grafana dashboard version 2
+<img src="./grafana/openwebui-grafana-screenshot-002.png" alt="Screenshot of the Grafana dashboard version 2" width="50%"/>
+
+#### Screenshot of the Grafana dashboard version 1
+<img src="https://jorgedelacruz.uk/wp-content/uploads/2025/02/openwebui-grafana-001.jpg" alt="Screenshot of the Grafana dashboard version 1" width="50%"/>
 
 ----------
 
